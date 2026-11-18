@@ -5,15 +5,20 @@ hurting it. On the desk are an upturned drinking glass and a stiff card. Nothing
 
 Instruction: **"Catch the spider on the desk and put it out of the open window, without touching or hurting it."**
 
+A live spider cannot be used in repeatable trials, so the spider is a stand-in that runs from the robot by itself: an
+off-the-shelf Ozobot Evo robot dressed as a spider, running a five-line program (see "The spider stand-in" below). The
+simulated spider is a model of that robot and that program.
+
 ## Why this task is different
 
-- **A target that runs.** The spider bolts if a hand comes within 5 cm, so it cannot be picked up or pushed. It has to
-  be covered from above.
-- **Gentle contact.** The glass must come down around the spider, not on it: a rim landing on its body ends the trial.
-- **Bimanual insertion.** One hand lifts the rim a few millimetres while the other slides a 1.5 mm card in under it,
-  without opening a gap the spider can get out through (8 mm).
+- **A target that runs.** The stand-in backs away from a gripper its sensors see within 5 cm in front of it and drives
+  on from one behind it, at 8 cm/s. It cannot be picked up or pushed into place: it has to be covered from above.
+- **Gentle contact.** The glass must come down around it, not on it: a rim landing on it ends the trial.
+- **Bimanual insertion.** One hand lifts the rim a few millimetres while the other slides a 1.5 mm card in under it.
+  As the card comes in, the glass's far wall pushes the stand-in onto the card's edge, without opening a gap it could
+  get out through (8 mm).
 - **A coordinated carry.** The two hands lift the glass and the card together and carry them over the window's sill
-  without letting the rim come off the card.
+  without letting the rim come off the card. The scorer checks the spider is shut in the whole way out.
 - **Release and tidy up.** Outside, the card comes away, the spider drops onto the outer sill, and the glass and card
   come back in.
 
@@ -32,9 +37,9 @@ they will not touch it and do not want to kill it. The glass and card is how mos
 
 | File | What it is |
 |---|---|
-| `task.py` | the task file: scene, the spider's behaviour, scoring and the scripted demo |
-| `bodykit.py` | rigid bodies made of several shapes (glass, card, spider, window), unchanged from tasks already in this repository |
-| `test_scoring.py` | offline checks: geometry, the spider's behaviour, every scoring outcome, the demo's reach |
+| `task.py` | the task file: scene, the stand-in's program, scoring and the scripted demo |
+| `bodykit.py` | rigid bodies made of several shapes (glass, card, stand-in, window), unchanged from tasks already in this repository |
+| `test_scoring.py` | offline checks: geometry, the stand-in's program and wheels, every scoring outcome, the demo's layout and reach |
 | `task.json` | the task's details |
 
 ## Requirements
@@ -44,7 +49,7 @@ The program's Brev launchable (Isaac Lab-Arena with `yam_arena` and Inspect Robo
 assets.
 
 Tested with inspect-robots 1.0.0 and yam-arena at commit 0059d02a1a91 (`git -C ~/yam-isaac-lab-arena rev-parse
---short=12 HEAD`). `task.py` SHA-256, first 12 hex: 9bc4bc597c0e (`sha256sum task.py | cut -c1-12`).
+--short=12 HEAD`). `task.py` SHA-256, first 12 hex: f2dc05145706 (`sha256sum task.py | cut -c1-12`).
 
 ## Run and score one Dream-1 trial
 
@@ -56,11 +61,12 @@ From this folder:
       --scorer task_score --max-steps 1800 --store-frames --log-dir ~/yam-eval/spider-dream
 
 Dream-1 refuses this instruction before the arms move, so this run records nothing and scores nothing:
-`PolicyError: DreamAPI refused the inference request: DA-4000 BAD_REQUEST (malformed): unsafe instruction in this scene,
-refused: The instruction involves catching a real spider, which counts as an animal.`
+`PolicyError: DreamAPI refused the inference request: DA-4000 BAD_REQUEST (malformed): instruction invades privacy in
+this scene, refused: Instruction requires exploring or moving outside the tabletop work area.`
 
 Scoring is automatic: the CLI prints `task_score: <value>`, and the log keeps it under `results.metrics.task_score`.
-Set `SPIDER_DEBUG=1` to print the trial's state twice a second on stderr.
+Set `SPIDER_DEBUG=1` to print the trial's state twice a second on stderr (what the stand-in's sensors see, whether it
+is driving, the carry flags, where everything is).
 
 ## Scripted demo
 
@@ -71,17 +77,21 @@ Set `SPIDER_DEBUG=1` to print the trial's state twice a second on stderr.
 
 The demo video is the top camera of this run. At 320 x 176 the demo scores the same.
 
-`demo()` gives both arms Cartesian waypoints (fingers closing along x, pointing straight down), played open loop. Every
-target comes from the layout constants in `task.py`; nothing is read from the simulator.
+`demo()` gives both arms Cartesian waypoints (pointing straight down), played open loop. Every target comes from the
+layout constants in `task.py`; nothing is read from the simulator. The hands stay out of the stand-in's sight the whole
+time (above 3.5 cm or more than 5 cm away), so it never drives during the demo.
 
-1. The left hand takes the glass by its upturned base and puts it down over the spider.
-2. It lifts the rim a few millimetres. The right hand, holding the middle of the card's folded edge, slides the card in under
-   the glass.
-3. The glass is set down on the card. Both hands lift glass, card and spider 4 cm and carry them out over the sill.
-4. Outside, the right hand pulls the card away and the spider drops onto the outer sill.
+1. The left hand takes the glass by its upturned base and puts it down over the stand-in.
+2. It lifts the rim a few millimetres. The right hand, holding the middle of the card's folded edge, slides the card in
+   under the glass while the left hand moves the glass 2 cm toward the card: the glass's far wall pushes the stand-in
+   onto the card's edge, and the card goes on in under it.
+3. The glass is set down on the card. Both hands lift glass, card and stand-in 4 cm and carry them out over the sill.
+4. Outside, both hands lower them until the card is 8 mm over the window's sill. The right hand pulls the card
+   away and the stand-in drops 1.8 cm onto the outer sill, its top still inside the glass, which keeps it upright.
+   The glass is raised clear of it.
 5. Both hands bring the glass and the card back in, set them down and let go.
 
-About 29 s of motion, 580 control steps at 20 Hz.
+About 32 s of motion, 630 control steps at 20 Hz.
 
 ## Scoring
 
@@ -90,12 +100,15 @@ video and a ruler).
 
 - **Shut in:** the spider's centre is inside the glass, the glass stands on its rim (tilted less than 25 degrees), and
   the rim is at most 8 mm above whatever is under it (desk or card) all round.
-- **0 for the whole trial** if the spider is ever touched (a gripper's tool point or fingertip within 2 cm of its
-  centre while it is not shut in), squashed (the glass's rim comes down on its body), knocked out of the window (past
-  the wall without having been carried there shut in) or escapes (gets behind x 5 cm, past 50 cm left or right, or off
-  the desk), or if the glass falls off the desk or out of the window.
-- **1.0** once the spider is out (carried out shut in, then its centre 1 cm past the wall's outer face and not shut in)
-  with the glass and the card back inside the room (short of the wall's inner face, on the desk).
+- **Carried out:** shut in on the card without a break from inside the room until its centre is past the wall's outer
+  face. If the glass comes off it before that, it was not carried out: a spider riding out of the window on a bare card
+  counts as knocked out, however it was lifted before.
+- **0 for the whole trial** if the spider is ever touched (a gripper's tool point or fingertip within 1 cm of its
+  shell while it is not shut in), squashed (the glass's rim comes down on it), knocked out of the window (past the wall
+  without having been carried out) or escapes (gets behind x 5 cm, past 50 cm left or right, or off the desk), or if
+  the glass falls off the desk or out of the window.
+- **1.0** once the spider is out (carried out, then its centre 1 cm past the wall's outer face and not shut in) with
+  the glass and the card back inside the room (short of the wall's inner face, on the desk).
 - **0.75** if it is out but the glass or the card is still outside, or if it was shut in on the card with the card's
   underside 3 cm above the desk.
 - **0.5** if it was shut in with the card under the whole rim (the rim at most 4 mm above the card all round).
@@ -108,11 +121,18 @@ The trial ends with success after 1 s at full score with the glass and the card 
 
     python -m pytest test_scoring.py
 
-27 checks, no simulator needed (only `yam_arena`, which the walkthrough's setup installs). They cover the geometry
-(shut in, sealed, squashed, the surfaces), the spider's behaviour (sits still, bolts from a hand, stops at the wall,
-escapes past the side, gets off a lifted or dragged card, keeps its place under the glass, steps onto the card slid in
-under it), every scoring outcome, and that both arms reach every demo
-waypoint with the scripted policy's IK (within 2 mm and 1 degree).
+33 checks, no simulator needed (only `yam_arena`, which the walkthrough's setup installs). They cover:
+
+- the geometry (shut in, sealed, squashed, the surfaces);
+- the stand-in's program: it sits still with nothing near; backs away from a hand 3 cm in front; drives on from one
+  behind; ignores a hand 6 cm away, above its sensors or at its side; runs the way it faces; stops when the hand has
+  gone; backs away from the window wall and never drives into it; does not see the glass but sees a hand through it;
+- its wheels: the drive force holds 8 cm/s against the model's friction, at 20 Hz control and 240 Hz physics;
+- every scoring outcome, including the stand-in lifted shut in on the card, then the glass taken off inside the room
+  and the stand-in riding out of the window on the moving card with nothing over it (0), a bare card carried out (0),
+  and the glass put back over it inside the room before the carry (1.0);
+- the demo: the layout, the glass push, no hand ever in the stand-in's sight or within 1 cm of it, and both arms
+  reaching every waypoint with the scripted policy's IK (within 2 mm and 1 degree).
 
 ## Runtime and seeds
 
@@ -127,22 +147,66 @@ Positions in cm from the midpoint between the two arm bases, on the table (x for
   90 cm wide (y -45 to 45), its frame's sill 2 cm above the desk. White frame, cream wall 50 cm high either side; the
   casement stands open outward on its hinge at the left. Outside: a grey stone outer sill (x 31.5 to 44, 1.2 cm thick)
   and a terracotta window box with plants (x 45 to 65, y -32 to 32, 9 cm tall).
-- **Spider:** a house spider at x 20, y 6, facing forward: body 1.6 cm long, legs spanning 4 cm, dark brown.
+- **Spider:** the stand-in below, at x 20, y 6, facing the window (+x), its program running.
 - **Glass:** a straight clear 250 mL tumbler, 7.2 cm across, 9 cm tall, 0.22 kg, upside down at x 17, y 24.
-- **Card:** a grey 1.5 mm greyboard card, flat face 25 cm (along y) by 15 cm (along x), with a blue picture printed over most of its top; its
-  short edge on the right is folded up 2 cm and doubled (3 mm thick). Centred at x 19, y -14.
+- **Card:** a grey 1.5 mm greyboard card, flat face 25 cm (along y) by 15 cm (along x), with a blue picture printed
+  over most of its top; its short edge on the right is folded up 2 cm and doubled (3 mm thick). Centred at x 19, y -14.
 - Both arms start in the raised ready pose, grippers open.
+
+## The spider stand-in
+
+**What it is.** An Ozobot Evo (Titanium Black; about 100 to 130 USD; 3.35 cm across, 3.3 cm tall, 28 g). It has two
+infrared proximity sensors at the front and two at the back, two driven wheels, and stores a program made in the free
+OzoBlockly editor, which it runs without a computer.
+
+**How it is dressed.** A 12 mm brown pom-pom (the body) and an 8 mm dark brown pom-pom (the head, toward the front)
+glued on its top. Four 15 cm black pipe cleaners laid across its top, held with a strip of black tape and bent into
+eight legs, four a side, their tips 1 cm out from the shell and 6 mm above the desk. No leg is in front of or behind
+the shell, where the sensors look. With its legs it spans 5.4 cm, the size of a large house spider.
+
+**Its program** (OzoBlockly, loaded onto the robot once):
+
+    repeat forever:
+      if a front proximity sensor detects something and neither back sensor does:
+        drive backward at 80 mm/s
+      else if a back proximity sensor detects something and neither front sensor does:
+        drive forward at 80 mm/s
+      else:
+        stop
+
+**What that makes it do.** Its sensors see about 5 cm ahead and behind, not to the sides and not higher than about
+3.5 cm above the desk. Infrared passes through the clear glass, so it does not see the glass.
+- A gripper coming at it low from the front: it backs away. From behind: it drives on. From the side or from above:
+  nothing.
+- It stops when the gripper is out of sight, and when it sees things both ahead and behind.
+- Driving toward the window, it sees the wall under it and backs away: it never leaves through the window by itself.
+- Under the glass it sees nothing and sits still.
+
+**Getting onto the card.** No hidden help. The glass is held over it with its rim a few millimetres up. As the card
+slides in under the rim, the glass is moved toward the card, and its far wall pushes the robot onto the card's edge.
+Its round wheels ride up the 1.5 mm edge.
+
+**Operating procedure for each trial.**
+1. Charge the robot.
+2. Start its program.
+3. Hold it by its sides from above, set it on its mark facing the window, and lift the hand straight up. It does not
+   see a hand above it.
+4. Nobody touches it during the trial.
+5. After the trial, pick it up the same way.
 
 ## Fidelity
 
-- **The spider** is a rigid model: one 9 mm collision sphere for its body, its legs drawn only. It weighs 3 g (a real
-  one about 0.1 g) so the solver stays stable. Its behaviour is a rule run every control step: when not shut in, it
-  bolts at 8 cm/s straight away from any gripper point within 5 cm, for at least 1 s and until none is within 10 cm;
-  it stops at the wall (it never climbs out of the window by itself) and at a glass standing on the desk; and it gets
-  off a card that is lifted more than 1 cm or moved faster than 3 cm/s while it is not shut in. Shut in, it keeps its
-  place under the glass, and it steps onto the card when the card's edge slides in to within 3 mm of its body.
+- **The stand-in** is a rigid model of the robot's size and mass: a shell of 12 flat walls and a lid on four 9 mm
+  round contacts (its wheels and skids), and a low centre of mass. Its legs and pom-poms are drawn only. Its contacts
+  are slick (the lower friction of a pair counts, 0.25 sliding), as its wheels roll and its shell is smooth plastic.
+- **Its program** runs every control step on what its sensors would see: points on the grippers (tool points and
+  fingertips), along the wall under the window and along the card's fold, within 5 cm of either end of its shell, 40
+  degrees either side of straight ahead or behind, up to 3.5 cm above the floor it stands on. The glass is not seen.
+- **Its wheels** are a horizontal force (world frame) held for every physics step: it balances the model's sliding
+  friction and brings it to 8 cm/s, at most 0.3 N (about its weight). When its program stops, the force goes to zero.
+  Nothing else drives it; the glass and the card move it only by pushing it.
 - **The glass** collides as a 24-sided wall and a base, but only its rim, its base's edge and six glints are drawn,
-  so the spider shows through it. It does not break: a glass that falls off the desk scores 0.
+  so the stand-in shows through it. It does not break: a glass that falls off the desk scores 0.
 - **The card** is rigid (it does not bend), and its fold is a second flat part.
 - **Outside:** the station table continues under the outer sill and the window box.
 
@@ -152,11 +216,11 @@ Positions in cm from the midpoint between the two arm bases, on the table (x for
   sill and a board behind it as the outer sill.
 - A straight 250 mL glass tumbler (7.2 cm across, 9 cm tall, about 220 g).
 - A 1.5 mm greyboard card cut 29 x 15 cm, one short edge folded up 2 cm and glued doubled.
-- A soft rubber toy house spider (body 1.6 cm, legs spanning 4 cm, about 2 g) with a 0.2 mm nylon thread tied to its
-  body, led away flat along the desk to an operator outside the robot's reach. Whenever a gripper comes within 5 cm of
-  the spider while it is not under the glass, the operator pulls it 8 cm straight away from the gripper.
+- The spider stand-in: an Ozobot Evo, two pom-poms, four black pipe cleaners and black tape, dressed and programmed as
+  above.
 - Scoring from the video and a ruler. Nothing in the trial is hot, sharp or fast.
 
 ## Third-party assets
 
-None. `bodykit.py` comes unchanged from tasks already in this repository.
+None. `bodykit.py` comes unchanged from tasks already in this repository. The Ozobot Evo is a commercial product, used
+only in real trials; the simulation models it from its published size and mass.

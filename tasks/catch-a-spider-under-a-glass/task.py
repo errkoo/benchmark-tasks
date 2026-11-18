@@ -1,10 +1,13 @@
-"""On the station table, used as a desk pushed against the wall under a wide window that stands open: a house spider
+"""On the station table, used as a desk pushed against the wall under a wide window that stands open: a spider stand-in
 sitting on the desk, an empty drinking glass standing upside down, and a stiff card lying flat.
 
 - The window: the wall's inner face runs across the desk 28.5 cm in front of the arm bases. The opening is 90 cm wide
   and its frame's sill is 3 cm deep and 2 cm above the desk. Outside are a stone outer sill and a window box.
-- The spider: a house spider, body 1.6 cm long, legs spanning 4 cm. It bolts if a hand comes within 5 cm of it, and it
-  does not stay on anything that is moved or lifted unless it is shut in.
+- The spider: a live spider can't be used in repeatable trials, so the stand-in is a small off-the-shelf robot dressed
+  as one: an Ozobot Evo (Titanium Black, 3.35 cm across, 3.3 cm tall, 28 g) with eight black pipe-cleaner legs. It runs
+  a short program (README): it backs away from anything its two front proximity sensors see within about 5 cm, drives
+  forward from anything its two back sensors see, at 8 cm/s, and otherwise sits still. Its program is all that drives
+  it; the glass and the card only push it, as they would the real one.
 - The glass: a straight 250 mL tumbler, 7.2 cm across and 9 cm tall, 0.22 kg, upside down.
 - The card: a 1.5 mm greyboard card, 25 x 15 cm, one short edge (on the right) folded up 2 cm (a doubled strip).
 
@@ -43,9 +46,15 @@ WALL_TOP, WALL_END = 0.50, 0.62         # the wall either side: this high above 
 SLAB_X1, SLAB_H = 0.44, 0.012           # outside: a stone outer sill from X_OUT to x 0.44, 1.2 cm thick
 PLANTER_X, PLANTER_HALF_Y, PLANTER_H = (0.45, 0.65), 0.32, 0.09   # and a window box beyond it
 
+# the spider stand-in: an Ozobot Evo dressed as a spider, facing +x (the window)
 SPIDER_XY = (0.200, 0.060)
-SPIDER_R = 0.0045                       # its body's collision sphere (radius); the centre is this high off the floor
-SPIDER_MASS = 0.003                     # heavier than a real one (about 0.1 g) so the solver stays stable
+BOT_R, BOT_H = 0.01675, 0.033           # 33.5 mm across, 33 mm tall
+FOOT_R, FOOT_AT = 0.0045, 0.012         # it stands on four round contacts (its two wheels and two skids)
+SHELL_Z0 = 0.0035                       # the shell's lower edge, this high off the floor it stands on
+SPIDER_MASS = 0.028
+SPIDER_COM = (0.0, 0.0, 0.008)          # battery and motors sit low in the shell
+SPIDER_FRICTION = (0.30, 0.25)          # slick (the lower friction of any pair counts): wheels roll, the shell is smooth
+LEG_REACH = 0.010                       # its pipe-cleaner legs reach this far out past the shell, clear of the floor
 
 GLASS_XY = (0.170, 0.240)
 GLASS_R, GLASS_WALL, GLASS_H, GLASS_BASE = 0.036, 0.0035, 0.090, 0.008
@@ -57,26 +66,26 @@ CARD_X, CARD_Y, CARD_T = 0.150, 0.250, 0.0015
 LIP_T, LIP_H = 0.003, 0.020             # the folded-up strip along its right-hand short edge (-y): doubled card
 CARD_MASS = 0.040
 
-# -- the spider's behaviour --------------------------------------------------------------------------------------------
-STARTLE = 0.05          # a hand point (tool point or fingertip) this close makes a free spider bolt
-CALM = 0.10             # it keeps running while a hand point is this close
-RUN_SPEED = 0.08        # m/s
-RUN_S = 1.0             # once startled it runs at least this long
-CARD_STILL = 0.03       # m/s: an uncovered spider gets off a card moving faster than this ...
-CARD_UP = 0.010         # ... or lifted this far off the desk
-STEP_ON = 0.003         # shut in, it steps onto the card when the card's edge comes this close to its body
+# -- the stand-in's program (README: "The spider stand-in") ------------------------------------------------------------
+SENSE_RANGE = 0.05                      # its infrared proximity sensors see about this far (about 2 in)
+SENSE_HALF = math.radians(40.0)         # ... within this angle either side of straight ahead (front pair) or behind
+SENSE_TOP = 0.035                       # ... from the floor it stands on up to this height
+DRIVE = 0.08                            # m/s: the speed its program drives at
+DRIVE_FF = SPIDER_FRICTION[1] * SPIDER_MASS * 9.81   # N: its wheels' force that balances the model's sliding friction
+DRIVE_K = 0.5                           # N per m/s: and the force that brings it to the program's speed
+DRIVE_F_MAX = 0.30                      # N: at most about its weight (rubber wheels)
 
 # -- scoring -----------------------------------------------------------------------------------------------------------
-TOUCH = 0.020           # a hand point this close to the centre of a spider that is not shut in touches it (legs 2 cm)
+TOUCH = 0.010           # a hand point this close to the shell of a stand-in that is not shut in touches it (its legs)
 TRAP_GAP = 0.008        # shut in: inside the glass, its rim at most this far above whatever is under it, all round
 SEAL_GAP = 0.004        # card on: the whole rim over the card's face, at most this far above it
 LIFTED = 0.030          # lifted: the card's underside this far above the desk
-OUT_PAST = 0.010        # out: the spider's centre this far past the wall's outer face, not shut in
-DESK_X0, DESK_Y = 0.05, 0.50            # escaped: the spider gets behind x 0.05 or past |y| 0.50 (inside the room)
+OUT_PAST = 0.010        # out: the stand-in's centre this far past the wall's outer face, not shut in
+DESK_X0, DESK_Y = 0.05, 0.50            # escaped: its centre gets behind x 0.05 or past |y| 0.50 (inside the room)
 FELL = 0.030            # the glass's rim this far below the desk top: it fell off the desk or out of the window
 UPRIGHT = math.radians(25.0)            # the glass counts as standing on its rim within this tilt
 R_MID = GLASS_R - GLASS_WALL / 2
-SQUASH = GLASS_WALL / 2 + SPIDER_R - 0.0015   # the rim's middle line this close (horizontally) to the spider's centre
+SQUASH = GLASS_WALL / 2 + BOT_R - 0.004     # the rim's middle line this close (horizontally) to the stand-in's centre
 RIM = np.array([[R_MID * math.cos(a), R_MID * math.sin(a), 0.0] for a in np.linspace(0.0, 2 * math.pi, 48,
                                                                                          endpoint=False)])
 
@@ -85,7 +94,7 @@ FRAME, WALL, STONE, POT, SOIL, LEAF = (0.95, 0.95, 0.93), (0.90, 0.87, 0.80), (0
     (0.25, 0.17, 0.11), (0.25, 0.50, 0.20)
 PANE = (0.72, 0.84, 0.90)
 GLASS_EDGE, GLASS_GLINT = (0.78, 0.87, 0.90), (0.90, 0.95, 0.97)
-BROWN, DARK, LEG = (0.33, 0.22, 0.13), (0.20, 0.13, 0.08), (0.24, 0.16, 0.10)
+SHELL, BROWN, DARK, LEG = (0.11, 0.11, 0.12), (0.33, 0.22, 0.13), (0.20, 0.13, 0.08), (0.05, 0.05, 0.05)
 GREY_CARD, PRINT = (0.62, 0.61, 0.58), (0.30, 0.52, 0.70)
 
 
@@ -97,25 +106,30 @@ def _ring(r_mid, thick, z0, h, n, color, collide=True):
 
 
 def _spider() -> Body:
-    """Origin under the middle of its body, on the floor; it faces +x. One collision sphere, the rest drawn only."""
-    shapes = [SphereShape((0.0, 0.0, SPIDER_R), SPIDER_R, None),
-              SphereShape((-0.0042, 0.0, 0.0047), 0.0046, BROWN, collide=False),     # abdomen
-              SphereShape((0.0036, 0.0, 0.0040), 0.0033, DARK, collide=False)]       # head and thorax
+    """Origin under the middle of the robot, on the floor; it faces +x. It stands on four contact spheres; its shell is
+    a ring of 12 flat walls and a lid (all collide). The dome, the spider's body on top and its legs are drawn only."""
+    shapes = [SphereShape((FOOT_AT * math.cos(a), FOOT_AT * math.sin(a), FOOT_R), FOOT_R, None)
+              for a in (0.0, math.pi / 2, math.pi, 1.5 * math.pi)]
+    shapes += _ring(BOT_R - 0.001, 0.002, SHELL_Z0, BOT_H - SHELL_Z0 - 0.003, 12, SHELL)
+    shapes += [BoxShape((0.0, 0.0, BOT_H - 0.0015), (0.022, 0.022, 0.003), SHELL),                     # the lid
+               SphereShape((0.0, 0.0, BOT_H - 0.012), 0.0145, SHELL, collide=False),                   # the dome
+               SphereShape((-0.004, 0.0, BOT_H + 0.0015), 0.0055, BROWN, collide=False),               # abdomen
+               SphereShape((0.0055, 0.0, BOT_H + 0.001), 0.0035, DARK, collide=False)]                 # head
     for side in (1.0, -1.0):
-        for deg, reach in ((40.0, 0.020), (72.0, 0.017), (105.0, 0.017), (140.0, 0.019)):
+        for deg in (50.0, 78.0, 104.0, 132.0):          # four a side, none in front of or behind the sensors
             a = math.radians(deg)
             c, s = math.cos(a), side * math.sin(a)
-            root = (0.0036 + 0.0015 * c, 0.0022 * s / max(abs(s), 1e-9), 0.0042)
-            knee = (0.0036 + 0.010 * c, 0.010 * s, 0.0105)
-            foot = (0.0036 + reach * c, reach * s, 0.0006)
-            shapes += [segment(root, knee, 0.0010, LEG, collide=False), segment(knee, foot, 0.0008, LEG, collide=False)]
-    return Body.build("spider", pos=(*SPIDER_XY, TOP + 0.0003), mass=SPIDER_MASS, shapes=shapes, color=BROWN,
-                      friction=(0.8, 0.7), damping=(0.5, 8.0), contact_offset=0.001)
+            root = (0.85 * BOT_R * c, 0.85 * BOT_R * s, BOT_H - 0.004)
+            knee = ((BOT_R + 0.004) * c, (BOT_R + 0.004) * s, BOT_H + 0.003)
+            foot = ((BOT_R + LEG_REACH) * c, (BOT_R + LEG_REACH) * s, 0.006)
+            shapes += [segment(root, knee, 0.0014, LEG, collide=False), segment(knee, foot, 0.0012, LEG, collide=False)]
+    return Body.build("spider", pos=(*SPIDER_XY, TOP + 0.0003), mass=SPIDER_MASS, shapes=shapes, color=SHELL,
+                      friction=SPIDER_FRICTION, slick=True, damping=(0.2, 2.0), contact_offset=0.001, com=SPIDER_COM)
 
 
 def _glass() -> Body:
     """Origin in the middle of the rim (the rim on the desk, its base 9 cm up). The walls and base collide but are not
-    drawn, so the spider shows through; the rim, the base's edge and a few glints are drawn."""
+    drawn, so the stand-in shows through; the rim, the base's edge and a few glints are drawn."""
     wall_h = GLASS_H - GLASS_BASE
     shapes = _ring(R_MID, GLASS_WALL, 0.0, wall_h, 24, None)
     shapes.append(BoxShape((0.0, 0.0, GLASS_H - GLASS_BASE / 2), (2 * GLASS_R_IN, 2 * GLASS_R_IN, GLASS_BASE), None))
@@ -171,7 +185,8 @@ OBJECTS = [WINDOW, CARD, GLASS, SPIDER]
 # -- geometry (pure; tested offline) -----------------------------------------------------------------------------------
 
 def spider_centre(spider) -> np.ndarray:
-    return np.asarray(spider.pos, float) + rotation(spider.quat_xyzw) @ np.array([0.0, 0.0, SPIDER_R])
+    """The middle of the stand-in's shell (half its height above the floor it stands on)."""
+    return np.asarray(spider.pos, float) + rotation(spider.quat_xyzw) @ np.array([0.0, 0.0, BOT_H / 2])
 
 
 def rim_points(glass) -> np.ndarray:
@@ -237,38 +252,79 @@ def shut_in(spider, glass, card) -> bool:
     return r < GLASS_R_IN and -0.02 < h < GLASS_H - GLASS_BASE and rim_gap(glass, card)[0] <= TRAP_GAP
 
 
+def on_card(spider, card) -> bool:
+    """Standing on the card's face."""
+    q = to_card(card, spider_centre(spider))
+    return over_card(q) and abs(q[2] - CARD_T - BOT_H / 2) < 0.006
+
+
 def sealed(spider, glass, card) -> bool:
-    """Shut in with the card under the whole rim (rim at most SEAL_GAP above the card's face) and the spider on it."""
+    """Shut in with the card under the whole rim (rim at most SEAL_GAP above the card's face) and the stand-in on it."""
     if not shut_in(spider, glass, card):
         return False
     gap, all_on_card = rim_gap(glass, card)
-    q = to_card(card, spider_centre(spider))
-    return all_on_card and gap <= SEAL_GAP and over_card(q) and q[2] > CARD_T
+    return all_on_card and gap <= SEAL_GAP and on_card(spider, card)
 
 
 def squashed_now(spider, glass) -> bool:
-    """The glass's rim on the spider's body: its middle line within SQUASH (horizontally, in the glass's frame) of the
-    spider's centre, at or below the top of the body."""
+    """The glass's rim on the stand-in: its middle line within SQUASH (horizontally, in the glass's frame) of the
+    stand-in's centre, at or below the top of its shell."""
     r, h = in_glass(glass, spider_centre(spider))
-    return abs(r - R_MID) < SQUASH and h > -(SPIDER_R + 0.0015)
+    return abs(r - R_MID) < SQUASH and h > -(BOT_H / 2 + 0.0015)
 
 
-def card_face_z(card, x: float, y: float) -> float:
-    """Height of the plane of the card's face at (x, y) (-1 m when the card stands on edge)."""
-    n, c = rotation(card.quat_xyzw)[:, 2], np.asarray(card.pos, float)
-    if n[2] < 0.5:
-        return -1.0
-    return float(c[2] + (CARD_T - n[0] * (x - c[0]) - n[1] * (y - c[1])) / n[2])
-
-
-def on_card(spider, card) -> bool:
-    q = to_card(card, spider_centre(spider))
-    return over_card(q) and abs(q[2] - CARD_T - SPIDER_R) < 0.006
+def touch_gap(spider, hands) -> float:
+    """The smallest distance from a hand point to the stand-in's shell (a cylinder; 9 m with no hands)."""
+    base, gaps = np.asarray(spider.pos, float), [9.0]
+    for h in hands:
+        p = np.asarray(h, float)
+        across = max(float(math.hypot(p[0] - base[0], p[1] - base[1])) - BOT_R, 0.0)
+        up = max(float(p[2]) - (float(base[2]) + BOT_H), float(base[2]) - float(p[2]), 0.0)
+        gaps.append(math.hypot(across, up))
+    return min(gaps)
 
 
 def inside(state) -> bool:
     """An object back in the room: its origin short of the wall's inner face and not below the desk."""
     return float(state.pos[0]) < X_IN and float(state.pos[2]) > TOP - 0.02
+
+
+# -- what its sensors see ----------------------------------------------------------------------------------------------
+
+WALL_POINTS = np.array([[X_IN, y, TOP + z] for y in np.arange(-0.62, 0.6201, 0.01) for z in (0.005, 0.015)])
+FOLD_POINTS = np.array([[x, -CARD_Y / 2 + LIP_T / 2, CARD_T + z] for x in np.linspace(-CARD_X / 2, CARD_X / 2, 16)
+                        for z in (0.006, 0.016)])
+
+
+def obstacle_points(card, hands) -> np.ndarray:
+    """Points on everything its infrared proximity sensors can see: the card's fold, the wall under the window and the
+    grippers. Not the clear glass: infrared goes through it (so it sees a gripper through the glass too)."""
+    pts = [np.asarray(card.pos, float) + FOLD_POINTS @ rotation(card.quat_xyzw).T, WALL_POINTS]
+    if len(hands):
+        pts.append(np.asarray(hands, float).reshape(-1, 3))
+    return np.concatenate(pts)
+
+
+def heading(spider) -> np.ndarray:
+    """The way it faces, on the desk (unit vector)."""
+    d = rotation(spider.quat_xyzw)[:2, 0]
+    n = float(np.linalg.norm(d))
+    return d / n if n > 1e-9 else np.array([1.0, 0.0])
+
+
+def sensed(spider, points) -> tuple[bool, bool]:
+    """(front, back): whether its front pair or its back pair of proximity sensors sees any of ``points``: within
+    SENSE_RANGE of that end of its shell, within SENSE_HALF of straight ahead (or behind), up to SENSE_TOP high."""
+    base, h = np.asarray(spider.pos, float), heading(spider)
+    pts = np.asarray(points, float)
+    up = pts[:, 2] - base[2]
+    pts = pts[(up > -0.002) & (up < SENSE_TOP)]
+    seen = []
+    for d in (h, -h):
+        v = pts[:, :2] - (base[:2] + d * BOT_R)
+        dist = np.linalg.norm(v, axis=1)
+        seen.append(bool(np.any((dist <= SENSE_RANGE) & (v @ d >= dist * math.cos(SENSE_HALF)))))
+    return seen[0], seen[1]
 
 
 # -- what happens during a trial ---------------------------------------------------------------------------------------
@@ -277,11 +333,11 @@ _STATE: dict = {}
 
 
 FATAL = ("touched", "squashed", "flung", "escaped", "broken")
-FLAGS = ("shut", "trapped", "sealed", "lifted", "out", *FATAL)
+FLAGS = ("shut", "trapped", "sealed", "lifted", "carry", "past", "out", *FATAL)
 
 
 def _clear() -> None:
-    _STATE.update({k: False for k in FLAGS}, run=0.0, dir=(-1.0, 0.0), steps=0, rel=None)
+    _STATE.update({k: False for k in FLAGS}, steps=0, driving=False, front=False, back=False, near=9.0)
 
 
 _clear()
@@ -292,146 +348,66 @@ def _new_episode() -> None:
     _clear()
 
 
-def _blocked(xy, here, glass) -> bool:
-    """A running spider stops at the wall (it never climbs out of the window on its own) and at a glass standing near
-    the desk (unless it is already under it)."""
-    if xy[0] > X_IN - 0.010:
-        return True
-    lo, hi = np.asarray(glass.low, float), np.asarray(glass.high, float)
-    if lo[2] < TOP + 0.02:
-        r = SPIDER_R + 0.002
-        within = lambda p: lo[0] - r <= p[0] <= hi[0] + r and lo[1] - r <= p[1] <= hi[1] + r  # noqa: E731
-        return within(xy) and not within(here)
-    return False
-
-
-def _rotate(d, deg) -> np.ndarray:
-    a = math.radians(deg)
-    return np.array([d[0] * math.cos(a) - d[1] * math.sin(a), d[0] * math.sin(a) + d[1] * math.cos(a)])
-
-
-def _floor_under(xy, card) -> float:
-    """Where a spider on the desk at ``xy`` stands: on the card's face if the card lies flat there, else the desk."""
-    q = to_card(card, (xy[0], xy[1], TOP + 0.005))
-    if over_card(q) and float(card.pos[2]) < TOP + 0.004 and tilt(card.quat_xyzw) < math.radians(5.0):
-        return float(card.pos[2]) + CARD_T
-    return TOP
-
-
-def _sit_in_glass(spider, glass, card):
-    """Shut in, it keeps its place under the glass (it goes where the glass goes) and stands on whatever is under it.
-    When the card's edge comes in under the rim to within STEP_ON of its body, it steps onto the card."""
-    s = _STATE
-    rg, g = rotation(glass.quat_xyzw), np.asarray(glass.pos, float)
-    if s["rel"] is None:
-        s["rel"] = rg.T @ (spider_centre(spider) - g)
-    p = g + rg @ s["rel"]
-    floor = surface_z(p[0], p[1])
-    z = card_face_z(card, p[0], p[1])
-    q = to_card(card, (p[0], p[1], z))
-    reach = SPIDER_R + STEP_ON
-    if (abs(q[0]) <= CARD_X / 2 + reach and abs(q[1]) <= CARD_Y / 2 + reach
-            and floor - 0.002 < z <= float(np.max(rim_points(glass)[:, 2])) + 0.003):
-        if over_card(q):
-            floor = z
-        else:                                       # the card's edge is at it: it steps onto the card
-            inset = np.array([CARD_X / 2 - 0.001, CARD_Y / 2 - 0.001])
-            w = np.asarray(card.pos, float) + rotation(card.quat_xyzw) @ np.array([*np.clip(q[:2], -inset, inset),
-                                                                                    CARD_T])
-            if in_glass(glass, (w[0], w[1], p[2]))[0] < GLASS_R_IN - SPIDER_R:
-                p[:2] = w[:2]
-                floor = card_face_z(card, p[0], p[1])
-                s["rel"] = rg.T @ (np.array([p[0], p[1], floor + SPIDER_R]) - g)
-    r = rotation(spider.quat_xyzw)
-    return np.array([p[0], p[1], max(floor, 0.0) + 0.0003]), math.atan2(r[1, 0], r[0, 0])
+def _stop():
+    """Its program stops the wheels: (0, 0) once, when it was driving; None after (physics alone moves it)."""
+    if _STATE["driving"]:
+        _STATE["driving"] = False
+        return np.zeros(2)
+    return None
 
 
 def update(spider, glass, card, hands, dt: float):
-    """One control step: record what happened and move the spider on its own. ``hands`` are the grippers' tool points
-    and fingertips (world). Returns the spider's new (position, yaw) when it moves itself, the string "gone" when it
-    has escaped off the desk, or None. Pure apart from _STATE: tested offline."""
+    """One control step: record what happened, then run the stand-in's program. ``hands`` are the grippers' tool points
+    and fingertips (world). Returns the horizontal velocity (vx, vy) its wheels drive it at, (0, 0) when it has just
+    stopped, or None while it stands still. Pure apart from _STATE: tested offline."""
     s = _STATE
     s["steps"] += 1
-    if any(s[k] for k in FATAL):
-        return None
+    if any(s[k] for k in FATAL) or s["out"]:
+        return _stop()
     if float(np.min(rim_points(glass)[:, 2])) < TOP - FELL:
         s["broken"] = True
-        return None
-    if s["out"]:                                       # let go outside: it is gone, nothing more to watch
-        return None
+        return _stop()
     centre = spider_centre(spider)
     shut = shut_in(spider, glass, card)
     s["shut"] = shut
-    if not shut:
-        s["rel"] = None
     if tilt(glass.quat_xyzw) < math.radians(60.0) and squashed_now(spider, glass):
         s["squashed"] = True
-        return None
-    near = min((float(np.linalg.norm(np.asarray(h, float) - centre)) for h in hands), default=9.0)
-    s["near"] = near
-    s["left_tcp"] = hands[0] if len(hands) > 6 else None
-    if not shut and near < TOUCH:
+        return _stop()
+    s["near"] = touch_gap(spider, hands)
+    if not shut and s["near"] < TOUCH:
         s["touched"] = True
-        return None
+        return _stop()
+
+    # carried out: shut in on the card without a break from inside the room until its centre is past the wall
+    contained = shut and on_card(spider, card)
     if shut:
         s["trapped"] = True
         if sealed(spider, glass, card):
             s["sealed"] = True
-        if on_card(spider, card) and float(card.pos[2]) >= TOP + LIFTED:
+        if contained and float(card.pos[2]) >= TOP + LIFTED:
             s["lifted"] = True
-        return _sit_in_glass(spider, glass, card)
-    if centre[0] > X_OUT + OUT_PAST:                   # past the wall: carried out shut in, or knocked out
-        s["out" if s["lifted"] else "flung"] = True
-        return None
+    if contained and centre[0] <= X_OUT:
+        s["carry"] = True                       # shut in on the card, still in the room: a carry starts (or goes on)
+    elif s["carry"] and not contained and not s["past"]:
+        s["carry"] = False                      # let out before it was past the wall: that carry is over
+    if s["carry"] and contained and centre[0] > X_OUT:
+        s["past"] = True                        # carried past the wall's outer face, still shut in on the card
+    if s["past"] and not contained and centre[0] <= X_OUT:
+        s["carry"] = s["past"] = False          # brought back into the room uncovered
+    if centre[0] > X_OUT + OUT_PAST and not shut:
+        s["out" if s["past"] else "flung"] = True
+        return _stop()
     if centre[0] < DESK_X0 or abs(centre[1]) > DESK_Y or centre[2] < TOP - 0.03:
         s["escaped"] = True
-        return "gone"
+        return _stop()
 
-    # not shut in, still in the room: it gets off a card that is moved or lifted ...
-    if on_card(spider, card) and (float(card.pos[2]) > TOP + CARD_UP
-                                  or float(np.linalg.norm(card.lin_vel[:2])) > CARD_STILL):
-        q = to_card(card, centre)
-        edge = np.array([0.0, 0.0])
-        if CARD_X / 2 - abs(q[0]) < CARD_Y / 2 - abs(q[1]):
-            edge[0] = math.copysign(CARD_X / 2 + 0.015, q[0])
-            edge[1] = q[1]
-        else:
-            edge[0] = q[0]
-            edge[1] = math.copysign(CARD_Y / 2 + 0.015, q[1])
-        p = np.asarray(card.pos, float) + rotation(card.quat_xyzw) @ np.array([edge[0], edge[1], 0.0])
-        if X_IN - 0.012 < p[0] <= X_OUT:                     # it would land on the window's sill: it hops back in
-            p[0] = X_IN - 0.012
-        z = surface_z(p[0], p[1])
-        if p[0] > X_OUT:
-            s["out" if s["lifted"] else "flung"] = True
-        else:
-            d = p[:2] - centre[:2]
-            s["dir"] = tuple(d / max(float(np.linalg.norm(d)), 1e-9))
-            s["run"] = RUN_S
-        return np.array([p[0], p[1], max(z, 0.0) + 0.0003]), math.atan2(s["dir"][1], s["dir"][0])
-
-    # ... and it bolts from a hand that comes close
-    if near < STARTLE or (s["run"] > 0.0 and near < CALM):
-        nearest = min(hands, key=lambda h: float(np.linalg.norm(np.asarray(h, float) - centre)))
-        away = centre[:2] - np.asarray(nearest, float)[:2]
-        n = float(np.linalg.norm(away))
-        s["dir"] = tuple(away / n) if n > 1e-6 else s["dir"]
-        s["run"] = max(s["run"], RUN_S)
-    if s["run"] <= 0.0:
-        return None
-    s["run"] -= dt
-    for turn in (0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0):
-        d = _rotate(s["dir"], turn)
-        xy = centre[:2] + d * RUN_SPEED * dt
-        if not _blocked(xy, centre[:2], glass):
-            break
-    else:
-        return None
-    s["dir"] = (float(d[0]), float(d[1]))
-    if xy[0] < DESK_X0 or abs(xy[1]) > DESK_Y:
-        s["escaped"] = True
-        return "gone"
-    return np.array([xy[0], xy[1], _floor_under(xy, card) + 0.0003]), math.atan2(d[1], d[0])
+    # its program: back away from what the front sensors see, drive on from what the back ones see, else stand still
+    front, back = sensed(spider, obstacle_points(card, hands))
+    s["front"], s["back"] = front, back
+    if front == back:
+        return _stop()
+    s["driving"] = True
+    return heading(spider) * (-DRIVE if front else DRIVE)
 
 
 def _points(objects) -> float:
@@ -448,24 +424,27 @@ def _points(objects) -> float:
 
 
 def score(objects) -> float:
-    """0 for the whole trial if the spider was ever touched (a gripper's tool point or fingertip within 2 cm of its
-    centre while it was not shut in), squashed (the glass's rim came down on its body), knocked out of the window
-    (past the wall without having been carried there shut in), or escaped (got behind x 5 cm or past 50 cm left or
-    right inside the room, or off the desk), or if the glass fell off the desk or out of the window. Otherwise 1.0 once
-    the spider is out (carried out shut in, then its centre 1 cm past the wall's outer face and not shut in) with the
-    glass and the card back inside the room; 0.75 if it is out but the glass or the card is still outside, or if it was
-    shut in on the card with the card's underside 3 cm above the desk; 0.5 if it was shut in with the card under the
-    whole rim (at most 4 mm below it all round); 0.25 if it was ever shut in under the glass (inside it, the rim at most
-    8 mm above the desk or card all round); else 0."""
+    """0 for the whole trial if the stand-in was ever touched (a gripper's tool point or fingertip within 1 cm of its
+    shell while it was not shut in), squashed (the glass's rim came down on it), knocked out of the window (past the wall
+    without having been carried there shut in), or escaped (got behind x 5 cm or past 50 cm left or right inside the
+    room, or off the desk), or if the glass fell off the desk or out of the window. Otherwise 1.0 once it is out
+    (carried out shut in on the card, then its centre 1 cm past the wall's outer face and not shut in) with the glass and
+    the card back inside the room; 0.75 if it is out but the glass or the card is still outside, or if it was shut in on
+    the card with the card's underside 3 cm above the desk; 0.5 if it was shut in with the card under the whole rim (at
+    most 4 mm below it all round); 0.25 if it was ever shut in under the glass (inside it, the rim at most 8 mm above the
+    desk or card all round); else 0. Carried out means shut in on the card without a break from inside the room until
+    its centre is past the wall's outer face: let out of the glass before that, it was not carried out."""
     points = _points(objects)
     k = _STATE["steps"]
-    if os.environ.get("SPIDER_DEBUG") and (k % 10 == 0 or (250 <= k <= 300 and k % 2 == 0)):
+    fine = 230 <= k <= 300 or 430 <= k <= 480                    # the slide and the release: every 2nd step
+    if os.environ.get("SPIDER_DEBUG") and (k % 10 == 0 or (fine and k % 2 == 0)):
         _debug(objects, points)
     return points
 
 
 def _debug(objects, points) -> None:
-    """One line on stderr: the demo phase (at 20 Hz), the flags set, where things are (cm), the rim's gap."""
+    """One line on stderr: the demo phase (at 20 Hz), the flags set, its program's state, where things are (cm), the
+    rim's gap."""
     s, t, label = _STATE, _STATE["steps"] * 0.05, "after the demo"
     for seconds, name, _, _ in demo_phases():
         if t < seconds:
@@ -476,12 +455,11 @@ def _debug(objects, points) -> None:
     gaps, under = rim_gaps(gl, cd)
     cm = lambda v: ",".join(f"{100 * float(x):.1f}" for x in v)  # noqa: E731
     deg = lambda q: f"{math.degrees(tilt(q)):.1f}"  # noqa: E731
-    lt = s.get("left_tcp")
-    print(f"[spider] {s['steps']} {label} | {points} {' '.join(k for k in FLAGS if s[k]) or '-'} | "
-          f"spider {cm(spider_centre(sp))} | glass {cm(gl.pos)} tilt {deg(gl.quat_xyzw)} | "
-          f"card {cm(cd.pos)} tilt {deg(cd.quat_xyzw)} | gap {1000 * max(gaps):.1f}/{1000 * min(gaps):.1f}mm "
-          f"under {under} | hand {100 * s.get('near', 9.0):.1f}cm | left tcp {cm(lt) if lt is not None else '-'}",
-          file=sys.stderr, flush=True)
+    sees = ("F" if s["front"] else "-") + ("B" if s["back"] else "-") + (" drive" if s["driving"] else "")
+    print(f"[spider] {s['steps']} {label} | {points} {' '.join(k for k in FLAGS if s[k]) or '-'} | sees {sees} | "
+          f"bot {cm(sp.pos)} tilt {deg(sp.quat_xyzw)} on_card {on_card(sp, cd)} | glass {cm(gl.pos)} tilt "
+          f"{deg(gl.quat_xyzw)} | card {cm(cd.pos)} tilt {deg(cd.quat_xyzw)} | gap {1000 * max(gaps):.1f}/"
+          f"{1000 * min(gaps):.1f}mm under {under} | hand {100 * s['near']:.1f}cm", file=sys.stderr, flush=True)
 
 
 def success(objects) -> bool:
@@ -517,25 +495,26 @@ def hand_points(environment) -> list:
     return pts
 
 
-def _write_spider(environment, pos, yaw: float) -> None:
-    """Put the spider at ``pos`` (relative to the env origin), facing ``yaw``, at rest."""
+def drive_force(target, vel) -> np.ndarray:
+    """Its wheels: the horizontal force (world, N) that drives it at ``target`` (m/s) from its velocity ``vel``: a
+    feed-forward that balances the model's sliding friction plus a proportional term, at most DRIVE_F_MAX. Zero for a
+    zero target (stopped)."""
+    t = np.asarray(target, float)[:2]
+    n = float(np.linalg.norm(t))
+    if n < 1e-9:
+        return np.zeros(2)
+    f = DRIVE_FF * t / n + DRIVE_K * (t - np.asarray(vel, float)[:2])
+    m = float(np.linalg.norm(f))
+    return f * (DRIVE_F_MAX / m) if m > DRIVE_F_MAX else f
+
+
+def _push(environment, fxy) -> None:
+    """Hold a horizontal force (world) on the stand-in for every physics step until the next control step."""
     import torch
 
-    base = environment.unwrapped
-    asset = base.scene["spider"]
-    origin = as_numpy(base.scene.env_origins[0])
-    data = asset.data.root_link_pose_w
-    dev = getattr(data, "torch", data).device
-    quat = (0.0, 0.0, math.sin(yaw / 2), math.cos(yaw / 2))
-    pose = torch.tensor([[*(np.asarray(pos, float) + origin), *quat]], dtype=torch.float32, device=dev)
-    vel = torch.zeros((1, 6), dtype=torch.float32, device=dev)
-    for stem, kw in (("write_root_pose_to_sim", {"root_pose": pose}),
-                     ("write_root_velocity_to_sim", {"root_velocity": vel})):
-        fn = getattr(asset, f"{stem}_index", None)
-        if fn is not None:
-            fn(env_ids=[0], **kw)
-        else:
-            getattr(asset, stem)(*kw.values())
+    asset = environment.unwrapped.scene["spider"]
+    f = torch.tensor([[[float(fxy[0]), float(fxy[1]), 0.0]]], dtype=torch.float32, device=asset.device)
+    asset.permanent_wrench_composer.set_forces_and_torques_index(forces=f, torques=torch.zeros_like(f), is_global=True)
 
 
 @on_step
@@ -544,28 +523,30 @@ def _watch(environment) -> None:
 
     st = object_states(environment, ["spider", "glass", "card"])
     dt = float(getattr(environment.unwrapped, "step_dt", 0.05))
-    move = update(st["spider"], st["glass"], st["card"], hand_points(environment), dt)
-    if move is None:
-        return
-    if isinstance(move, str):                       # escaped: it ran off the desk onto the floor, out of sight
-        c = spider_centre(st["spider"])
-        _write_spider(environment, (float(c[0]), math.copysign(0.75, float(c[1]) or 1.0), 0.0003), 0.0)
-        return
-    _write_spider(environment, move[0], move[1])
+    v = update(st["spider"], st["glass"], st["card"], hand_points(environment), dt)
+    if v is not None:
+        _push(environment, drive_force(v, st["spider"].lin_vel))
 
 
 # -- scripted demo -----------------------------------------------------------------------------------------------------
-# The left hand takes the glass by its upturned base, fingers closing along x, puts it down over the spider, then lifts
-# its rim a few millimetres. The right hand takes the middle of the card's fold (fingers along y) and slides the card
-# in under the glass from the right. The glass is set down on the card, and the two hands lift and carry glass, card and spider together out
-# over the sill. There the right hand pulls the card away, the spider drops onto the outer sill, and both hands bring
-# the glass and the card back in and set them down. Every target comes from the layout above: nothing is read from
-# the simulator.
+# The left hand takes the glass by its upturned base, fingers closing along x, puts it down over the stand-in, then
+# lifts its rim a few millimetres. The right hand takes the middle of the card's fold (fingers along y) and slides the
+# card in under the glass from the right while the left hand moves the glass 1.5 cm toward it: the glass's far wall
+# pushes the stand-in onto the card's edge. The glass is set down on the card, and the two hands lift and carry glass,
+# card and stand-in together out over the sill. There they lower them until the card is just over the window's sill,
+# the right hand pulls the card away, the stand-in drops 1.75 cm onto the outer sill with the glass still round its top,
+# the glass is raised clear of it, and both hands bring the glass and the card back in and set them down.
+# Every target comes from the layout above: nothing is read from the simulator.
 
 HOVER = TOP + 0.16
 GRIP_BELOW_TOP = 0.010          # the left tool point this far below the glass's (upturned) base
 PINCH_ABOVE = 0.005             # the right fingertips this far above the card's face
 LIFT_RIM = 0.009                # the rim raised this much while the card goes under (the hand sags ~3 mm under it)
+GLASS_PUSH = 0.020              # while the card slides in, the glass moves this far toward it (-y)
+RELEASE_UP = 0.028              # outside, glass and card come down until the card's underside is this high (8 mm over
+#                                 the window's sill): the stand-in drops 1.75 cm, its top still inside the glass
+CLEAR_RIM = 0.057               # then the glass is raised until its rim is this high (1.2 cm over the stand-in's lid;
+#                                 higher, the left arm leaves its reach)
 CARRY_UP = 0.040                # the glass and card lifted this much to carry them (card's underside 2 cm over the sill)
 RELEASE_XY = (0.375, 0.080)     # where the glass is held outside (its back edge 2.4 cm past the wall)
 PULL = 0.130                    # the card pulled this far (-y) from under it
@@ -589,14 +570,16 @@ def demo_phases() -> list:
     """(seconds, label, left target, right target): a target is (x, y, tool point z, finger) or None (stay)."""
     gx, gy = GLASS_XY
     sx, sy = SPIDER_XY
+    tx, ty = sx, sy - GLASS_PUSH                                       # the glass after it has pushed
     rx, ry = RELEASE_XY
     px, py = CARD_XY[0], CARD_XY[1] - CARD_Y / 2 + LIP_T / 2          # the middle of the fold
-    slide = sy + GLASS_R + SLIDE_PAST - (CARD_XY[1] + CARD_Y / 2)   # just far enough: the right hand stays clear
+    slide = ty + GLASS_R + SLIDE_PAST - (CARD_XY[1] + CARD_Y / 2)   # just far enough: the right hand stays clear
     o, c = FINGER_OPEN, FINGER_CLOSED
     g_rest, g_carry, c_rest = _glass_tcp(TOP + 0.0005), _glass_tcp(TOP + 0.060), _pinch_tcp(TOP)
     g_card = _glass_tcp(TOP + CARD_T + 0.0005) + LEFT_SAG
-    dx, dy = rx - sx, ry - sy
-    sx, sy, rx, ry = sx + LEFT_AIM[0], sy + LEFT_AIM[1], rx + LEFT_AIM[0], ry + LEFT_AIM[1]   # left hand's aim only
+    dx, dy = rx - tx, ry - ty
+    ax, ay = LEFT_AIM                                                   # the left hand's aim only
+    sx, sy, tx, ty, rx, ry = sx + ax, sy + ay, tx + ax, ty + ay, rx + ax, ry + ay
     return [
         (2.0, "to the glass / to the card's fold", (gx, gy, HOVER, o), (px, py, HOVER, o)),
         (1.5, "down round the glass / onto the fold", (gx, gy, g_rest, o), (px, py, c_rest, o)),
@@ -606,14 +589,18 @@ def demo_phases() -> list:
         (2.5, "lower it over the spider", (sx, sy, g_rest, c), None),
         (0.5, "wait", None, None),
         (1.2, "raise the rim", (sx, sy, g_rest + LIFT_RIM, c), None),
-        (3.0, "slide the card in under the glass", None, (px, py + slide, c_rest, c)),
+        (3.0, "slide the card in; the glass pushes the spider onto it", (tx, ty, g_rest + LIFT_RIM, c),
+         (px, py + slide, c_rest, c)),
         (0.5, "wait", None, None),
-        (0.8, "rim down onto the card", (sx, sy, g_card, c), None),
-        (1.5, "lift glass and card together", (sx, sy, g_card + CARRY_UP, c), (px, py + slide, c_rest + CARRY_UP, c)),
+        (0.8, "rim down onto the card", (tx, ty, g_card, c), None),
+        (1.5, "lift glass and card together", (tx, ty, g_card + CARRY_UP, c), (px, py + slide, c_rest + CARRY_UP, c)),
         (3.0, "carry them out over the sill", (rx, ry, g_card + CARRY_UP, c),
          (px + dx, py + slide + dy, c_rest + CARRY_UP, c)),
-        (2.0, "pull the card away", None, (px + dx, py + slide + dy - PULL, c_rest + CARRY_UP, c)),
+        (1.2, "lower them toward the outer sill", (rx, ry, g_card + RELEASE_UP, c),
+         (px + dx, py + slide + dy, c_rest + RELEASE_UP, c)),
+        (2.0, "pull the card away", None, (px + dx, py + slide + dy - PULL, c_rest + RELEASE_UP, c)),
         (1.0, "let the spider drop", None, None),
+        (1.0, "raise the glass off it", (rx, ry, _glass_tcp(TOP + CLEAR_RIM), c), None),
         (2.5, "bring the glass and the card back in", (gx, gy, g_carry, c), (px, py, c_rest + CARRY_UP, c)),
         (1.5, "set them down", (gx, gy, g_rest + 0.001, c), (px, py, c_rest + 0.002, c)),
         (0.6, "let go", (gx, gy, g_rest + 0.001, o), (px, py, c_rest + 0.002, o)),
